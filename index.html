@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>친구랑 홀덤</title>
+<style>
+:root{--bg:#f4f1ea;--fg:#1c1b18;--mut:#6b675e;--btn:#1c1b18;--btnfg:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17171a;--fg:#ecebe6;--mut:#9a978e;--btn:#ecebe6;--btnfg:#17171a}}
+:root[data-theme="dark"]{--bg:#17171a;--fg:#ecebe6;--mut:#9a978e;--btn:#ecebe6;--btnfg:#17171a}
+html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Noto Sans KR",sans-serif}
+main{max-width:480px;margin:0 auto;padding:16px;text-align:center}
+h1{font-size:22px;margin:8px 0 16px}
+input{font:inherit;padding:10px;border:1px solid var(--mut);border-radius:8px;background:transparent;color:var(--fg);width:100%;box-sizing:border-box;margin:6px 0}
+button{font:inherit;padding:10px 16px;border:0;border-radius:8px;background:var(--btn);color:var(--btnfg);cursor:pointer;margin:4px}
+button.s{background:transparent;color:var(--fg);border:1px solid var(--mut)}
+.mut{color:var(--mut)}.seat{font-size:14px;margin:6px 0}
+.row{display:flex;justify-content:center;gap:6px;margin:6px 0}
+.c{width:52px;height:74px;border-radius:7px;background:#fff;color:#111;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;border:1px solid #bbb}
+.c.r{color:#c0392b}.c.back{background:repeating-linear-gradient(45deg,#2c4a8a,#2c4a8a 6px,#3b5fb0 6px,#3b5fb0 12px);border-color:#1b2f5e}
+.c.ph{background:transparent;border:1px dashed #8fc9a6}
+.felt{background:#1f6b45;color:#fff;border-radius:16px;padding:12px 8px;margin:10px 0}
+.pot{font-weight:700;margin-bottom:4px}.log{font-size:14px;min-height:21px;margin-top:6px}
+.act{margin-top:8px}.rz{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:6px}
+.rz input{width:auto;flex:1;margin:0;padding:0}
+</style></head><body><main>
+<h1>♠ 친구랑 홀덤 ♥</h1>
+<div id="lb">
+<p class="mut">2인 텍사스 홀덤 · 시작 칩 1000 · 블라인드 10/20<br>가입·로그인 없이 두 브라우저가 직접 연결돼요</p>
+<input id="nm" placeholder="내 이름" maxlength="12">
+<button id="mk">방 만들기</button>
+<input id="rm" placeholder="친구가 알려준 방 코드" maxlength="6">
+<button id="jn" class="s">참가하기</button>
+<p id="er" class="mut"></p>
+</div>
+<div id="g"></div>
+</main>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SU='♠♥♦♣',RK='23456789TJQKA';
+const T=['하이카드','원페어','투페어','트리플','스트레이트','플러시','풀하우스','포카드','스트레이트 플러시'];
+const cardH=(c,hide)=>{if(hide)return'<div class="c back"></div>';const su=Math.floor(c/13);return'<div class="c'+(su==1||su==2?' r':'')+'">'+RK[c%13].replace('T','10')+SU[su]+'</div>'};
+let peer,conn,H=null,S=null,ME=0,code='',myName='';
+
+/* ---------- 게임 로직 (방장 브라우저에서만 실행) ---------- */
+function ev5(c){const r=c.map(x=>x%13+2).sort((a,b)=>b-a),fl=c.every(x=>Math.floor(x/13)==Math.floor(c[0]/13));
+const n={};r.forEach(x=>n[x]=(n[x]||0)+1);
+let g=Object.keys(n).map(Number).sort((a,b)=>n[b]-n[a]||b-a);
+let st=g.length==5&&r[0]-r[4]==4;
+if(g.length==5&&r.join()=='14,5,4,3,2'){st=true;g=[5,4,3,2,1]}
+const cs=g.map(x=>n[x]).join('');
+const cat=st&&fl?8:cs=='41'?7:cs=='32'?6:fl?5:st?4:cs=='311'?3:cs=='221'?2:cs=='2111'?1:0;
+return g.concat([0,0,0,0,0]).slice(0,5).reduce((a,x)=>a*15+x,cat)}
+function best7(c){let b=0;for(let i=0;i<7;i++)for(let j=i+1;j<7;j++){const v=ev5(c.filter((_,k)=>k!=i&&k!=j));if(v>b)b=v}return b}
+function shuffle(){const d=[...Array(52).keys()];for(let i=51;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]]}return d}
+function post(s,i,a){const p=Math.max(0,Math.min(a,s.stacks[i]));s.stacks[i]-=p;s.bets[i]+=p}
+function startHand(s){const d=shuffle();s.hole=[[d[0],d[1]],[d[2],d[3]]];s.deck=d.slice(4);s.board=[];s.pot=0;s.bets=[0,0];s.acted=[false,false];s.reveal=false;s.phase='play';
+if(s.hand>0)s.dealer=1-s.dealer;s.hand++;post(s,s.dealer,10);post(s,1-s.dealer,20);s.cur=s.dealer;s.msg='새 핸드 시작 (D = 딜러, 스몰블라인드)'}
+function showdown(s){const v=[0,1].map(i=>best7([...s.hole[i],...s.board]));s.reveal=true;s.phase='show';
+const tn=x=>T[Math.floor(x/759375)];
+if(v[0]!=v[1]){const w=v[0]>v[1]?0:1;s.stacks[w]+=s.pot;s.msg=s.names[w]+'('+tn(v[w])+') 승리! +'+s.pot+' (상대: '+tn(v[1-w])+')'}
+else{const h=Math.floor(s.pot/2);s.stacks[0]+=h;s.stacks[1]+=s.pot-h;s.msg='무승부 · 팟 분할 ('+tn(v[0])+')'}
+s.pot=0}
+function endStreet(s){const[b0,b1]=s.bets;if(b0!=b1){const i=b0>b1?0:1;s.stacks[i]+=Math.abs(b0-b1);s.bets[i]-=Math.abs(b0-b1)}
+s.pot+=s.bets[0]+s.bets[1];s.bets=[0,0];s.acted=[false,false];
+while(true){if(s.board.length==5)return showdown(s);
+s.board.push(...s.deck.splice(0,s.board.length?1:3));
+if(s.stacks[0]>0&&s.stacks[1]>0)break}
+s.cur=1-s.dealer;s.msg=''}
+function apply(s,me,type,amt){const o=1-me;if(s.phase!='play'||s.cur!=me)return;
+if(type=='fold'){s.stacks[o]+=s.pot+s.bets[0]+s.bets[1];s.pot=0;s.bets=[0,0];s.phase='show';s.msg=s.names[me]+' 폴드 → '+s.names[o]+' 팟 획득'}
+else{if(type=='call'){post(s,me,s.bets[o]-s.bets[me]);s.acted[me]=true;s.msg=s.names[me]+(s.bets[o]?' 콜/체크':' 체크')}
+else{const max=Math.min(s.bets[me]+s.stacks[me],s.bets[o]+s.stacks[o]);const t=Math.max(Math.min(Math.floor(+amt)||0,max),Math.min(s.bets[o]+20,max));
+post(s,me,t-s.bets[me]);s.acted[me]=true;s.acted[o]=false;s.msg=s.names[me]+(t>=max&&!s.stacks[me]?' 올인 ':' 레이즈 ')+t}
+if(s.acted[0]&&s.acted[1]&&(s.bets[0]==s.bets[1]||!s.stacks[0]||!s.stacks[1]))endStreet(s);else s.cur=o}}
+function nextHand(s){if(!s.stacks[0]||!s.stacks[1]){s.stacks=[1000,1000];s.hand=0;s.dealer=0}startHand(s)}
+
+/* ---------- 통신 ---------- */
+function view(s,me){const v=JSON.parse(JSON.stringify(s));delete v.deck;if(!v.reveal)v.hole[1-me]=null;return v}
+function push(){S=view(H,0);render();if(conn&&conn.open)conn.send({t:'s',s:view(H,1)})}
+function act(type,amt){if(ME==0){apply(H,0,type,amt);push()}else conn.send({t:'a',type,amt})}
+function next(){if(ME==0){nextHand(H);push()}else conn.send({t:'n'})}
+const err=m=>{$('#er').textContent=m;$('#lb').style.display='';$('#g').innerHTML=''};
+function ready(){if(typeof Peer=='undefined'){err('연결 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');return false}myName=$('#nm').value.trim()||'플레이어';$('#er').textContent='';return true}
+
+function host(tries){if(!ready())return;ME=0;
+code=Math.random().toString(36).slice(2,6).toUpperCase();
+peer=new Peer('holdem-'+code);
+peer.on('error',e=>{if(e.type=='unavailable-id'&&(tries||0)<5)host((tries||0)+1);else err('서버 연결 오류: '+e.type)});
+peer.on('open',()=>{H={names:[myName,''],stacks:[1000,1000],dealer:0,hand:0,phase:'wait',board:[],bets:[0,0],pot:0,msg:'',hole:[[],[]]};
+$('#lb').style.display='none';try{history.replaceState(null,'','#'+code)}catch(e){}push()});
+peer.on('connection',c=>{if(conn&&conn.open){c.close();return}
+conn=c;
+c.on('data',d=>{if(d.t=='hello'){H.names[1]=String(d.name||'친구').slice(0,12);nextHand(H);push()}
+else if(d.t=='a'){apply(H,1,d.type,d.amt);push()}
+else if(d.t=='n'){if(H.phase=='show'){nextHand(H);push()}}});
+c.on('close',()=>{conn=null;H.phase='wait';H.msg='';H.names[1]='';push()})})}
+
+function join(){if(!ready())return;ME=1;
+code=$('#rm').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');if(!code)return err('방 코드를 입력해 주세요.');
+peer=new Peer();
+peer.on('error',e=>err(e.type=='peer-unavailable'?'그 방을 찾을 수 없어요. 코드를 확인해 주세요.':'연결 오류: '+e.type));
+peer.on('open',()=>{conn=peer.connect('holdem-'+code,{reliable:true});
+const to=setTimeout(()=>err('연결 시간이 초과됐어요. 다시 시도해 주세요.'),15000);
+conn.on('open',()=>{clearTimeout(to);$('#lb').style.display='none';conn.send({t:'hello',name:myName})});
+conn.on('data',d=>{if(d.t=='s'){S=d.s;render()}});
+conn.on('close',()=>{$('#g').innerHTML='<p>연결이 끊겼어요. 새로고침 후 다시 참가해 주세요.</p>'})})}
+
+/* ---------- 화면 ---------- */
+function render(){const s=S,me=ME,g=$('#g');
+if(s.phase=='wait'){g.innerHTML='<p>친구를 기다리는 중… 방 코드 <b>'+code+'</b></p><button id="cp">초대 링크 복사</button><p class="mut">친구에게 이 링크를 보내거나 코드를 알려 주세요.<br>이 창을 닫으면 방이 사라져요.</p>';
+$('#cp').onclick=()=>{const u=location.origin+location.pathname+'#'+code;(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>$('#cp').textContent='복사됨!').catch(()=>prompt('링크를 복사하세요',u))};return}
+const o=1-me,play=s.phase=='play',mine=play&&s.cur==me,need=Math.max(0,s.bets[o]-s.bets[me]);
+const max=Math.min(s.bets[me]+s.stacks[me],s.bets[o]+s.stacks[o]),min=Math.min(s.bets[o]+20,max);
+let h='<p class="mut">방 코드 '+code+' · 핸드 #'+s.hand+'</p>';
+h+='<div class="seat">'+esc(s.names[o])+(s.dealer==o?' (D)':'')+' · 칩 '+s.stacks[o]+' · 베팅 '+s.bets[o]+'</div><div class="row">'+(s.hole[o]||[0,0]).map(c=>cardH(c,!s.reveal)).join('')+'</div>';
+h+='<div class="felt"><div class="pot">팟 '+(s.pot+s.bets[0]+s.bets[1])+'</div><div class="row">'+[0,1,2,3,4].map(i=>s.board[i]!=null?cardH(s.board[i]):'<div class="c ph"></div>').join('')+'</div><div class="log">'+esc(s.msg||'')+'</div></div>';
+h+='<div class="row">'+s.hole[me].map(c=>cardH(c)).join('')+'</div><div class="seat">나 ('+esc(s.names[me])+')'+(s.dealer==me?' (D)':'')+' · 칩 '+s.stacks[me]+' · 베팅 '+s.bets[me]+'</div>';
+if(play){if(mine){h+='<div class="act"><button class="s" id="fd">폴드</button><button id="ck">'+(need?'콜 '+Math.min(need,s.stacks[me]):'체크')+'</button></div>';
+if(max>s.bets[o])h+='<div class="rz"><input type="range" id="rs" min="'+min+'" max="'+max+'" value="'+min+'"><button id="rz"></button></div>'}
+else h+='<p class="mut">'+esc(s.names[o])+' 차례…</p>'}
+else h+='<button id="nx">'+(!s.stacks[0]||!s.stacks[1]?'새 게임 (칩 초기화)':'다음 핸드')+'</button>';
+g.innerHTML=h;
+if($('#fd')){$('#fd').onclick=()=>act('fold');$('#ck').onclick=()=>act('call')}
+if($('#rs')){const u=()=>{const v=+$('#rs').value;$('#rz').textContent=(v>=max?'올인 ':'레이즈 ')+v};u();$('#rs').oninput=u;$('#rz').onclick=()=>act('raise',$('#rs').value)}
+if($('#nx'))$('#nx').onclick=next}
+
+$('#mk').onclick=()=>host(0);$('#jn').onclick=join;
+const hs=location.hash.slice(1);if(hs)$('#rm').value=hs;
+</script></body></html>
