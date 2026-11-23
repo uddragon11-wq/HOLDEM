@@ -39,6 +39,9 @@ input{width:130px;text-align:center;background:var(--cream);color:var(--ink)}
 .pr.me{border-color:var(--gold);background:rgba(224,179,64,.22)}
 .pr .cards{min-height:0;gap:5px;flex:none}.pr .card{width:42px;height:62px;border-width:2px;padding:3px 0}.pr .card b{font-size:20px}.pr .card span{font-size:9px;min-height:11px;padding:0 3px}
 .pr em{font-style:normal;font-size:12px;opacity:.85;display:block}.pr .tag{margin-left:auto;color:var(--gold);font-weight:700;font-size:13px}
+.act{display:inline-block;background:var(--gold);color:var(--ink);font-weight:700;font-size:12px;border-radius:10px;padding:0 8px;min-height:18px;line-height:18px}.act:empty{visibility:hidden}
+.rs{font-size:20px;font-weight:700;color:var(--gold)}#lg{font-size:12px;opacity:.85;min-height:1.3em}
+.opp.w{border-color:var(--gold);box-shadow:0 0 0 3px rgba(224,179,64,.5)}
 .opps{display:flex;gap:6px}
 .opp{flex:1;min-width:0;border:2px solid rgba(242,234,211,.3);border-radius:8px;padding:6px 2px;text-align:center;font-size:12px}
 .opp.t{border-color:var(--gold);background:rgba(0,0,0,.2)}.opp.x{opacity:.5}
@@ -69,9 +72,9 @@ details{font-size:13px;opacity:.85;margin:10px 0 20px}
 <div id="game" hidden>
 <div style="text-align:right"><button id="pb" class="d">족보 보기</button></div>
 <div class="opps" id="opps"></div>
-<div class="mid"><div>판돈 <span class="big" id="pot"></span></div><div id="msg"></div></div>
+<div class="mid"><div>판돈 <span class="big" id="pot"></span></div><div id="msg"></div><div id="lg"></div></div>
 <div class="cards" id="mcards"></div><div id="hname"></div>
-<div class="row"><span>내 칩 <b id="mc"></b></span><span>내 베팅 <b id="mb"></b></span></div>
+<div class="row"><span>내 칩 <b id="mc"></b></span><span class="act" id="ml"></span><span>내 베팅 <b id="mb"></b></span></div>
 <div id="acts"></div>
 
 </div>
@@ -79,7 +82,7 @@ details{font-size:13px;opacity:.85;margin:10px 0 20px}
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const $=i=>document.getElementById(i),E=['🌲','🌸','🌺','🐦','🌿','🦋','🐗','🌕','🍶','🍁'],st=t=>$('st').innerHTML=t,r10=x=>Math.ceil(x/10)*10;
-let S,V,peer,conn,me=0,test=false,guest=false,conns=[],gs=[],mode=2,sel=[],curHand='';
+let S,V,peer,conn,me=0,test=false,guest=false,conns=[],gs=[],mode=2,sel=[],curHand='',lk='',hold=0;
 function deck(){const d=[];for(let m=1;m<=10;m++)d.push({m,t:[1,3,8].includes(m)?'g':[4,7].includes(m)?'y':'n'},{m,t:'n'});
  for(let i=d.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[d[i],d[j]]=[d[j],d[i]]}return d}
 function ev(h){const[a,b]=h,s=[a.m,b.m].sort((x,y)=>x-y).join(',');
@@ -99,12 +102,12 @@ const cur=()=>Math.max(0,...S.bets.filter((b,s)=>S.in[s])),done=s=>S.bets[s]==cu
 const cap=()=>Math.min(...S.in.map((x,s)=>x?S.bets[s]+S.chips[s]:1e9));
 function deal(){const d=deck();let k=0;S.in=S.chips.map((c,s)=>alive(s));
  do{S.dealer=(S.dealer+1)%S.n}while(!S.in[S.dealer]);
- S.hands=S.in.map(x=>x?Array.from({length:S.mode},()=>d[k++]):null);S.pick=S.in.map(()=>null);S.bets=S.in.map(x=>x?10:0);S.chips=S.chips.map((c,s)=>S.in[s]?c-10:c);
+ S.hands=S.in.map(x=>x?Array.from({length:S.mode},()=>d[k++]):null);S.pick=S.in.map(()=>null);S.last=S.in.map(()=>'');S.log=[];S.showW=false;S.bets=S.in.map(x=>x?10:0);S.chips=S.chips.map((c,s)=>S.in[s]?c-10:c);
  S.acted=S.in.map(()=>false);S.phase='bet';S.res=null;S.reveal=false;S.over=false;nextTurn(S.dealer);push()}
 function best(){const L=S.in.map((x,s)=>x?s:-1).filter(s=>s>=0);let c=L[0];
  for(const s of L)if(cmp(fh(s),fh(c))>0)c=s;return L.filter(s=>cmp(fh(c),fh(s))==0)}
 const fh=s=>S.mode==3?(S.pick[s]?S.pick[s].map(i=>S.hands[s][i]):null):S.hands[s];
-const endBet=()=>S.mode==3?startPick():finish(best(),'show');
+const endBet=()=>{if(S.phase=='wait')return;S.phase='wait';push();setTimeout(()=>{if(S.phase!='wait')return;S.mode==3?startPick():finish(best(),'show')},1500)};
 function startPick(){S.phase='pick';S.pick=S.in.map(()=>null);push()}
 function pickCheck(){S.in.every((x,s)=>!x||S.pick[s])?finish(best(),'show'):push()}
 function doPick(p,T){if(S.phase!='pick'||!S.in[p]||S.pick[p]||!Array.isArray(T)||T.length!=2||T[0]==T[1]||T.some(i=>!(i>=0&&i<3)))return;S.pick[p]=[...T].sort();pickCheck()}
@@ -113,11 +116,12 @@ function finish(W,why){S.phase='over';S.reveal=why=='show';const pot=S.bets.redu
  W.forEach((s,i)=>S.chips[s]+=sh+(i?0:pot-sh*W.length));
  S.res={W,why,n:S.hands.map((h,s)=>S.in[s]&&fh(s)?ev(fh(s)).n:null)};
  S.over=S.chips.filter((c,s)=>c>0&&!S.dc[s]).length<=1;push()}
-function act(p,a,T){if(!S)return;if(a=='pick')return doPick(p,T);if(S.phase!='bet'||S.turn!=p)return;const B=S.bets,C=S.chips,c=cur();
- if(a=='die'){S.in[p]=false;if(left()==1)return finish([S.in.indexOf(true)],'die')}
- else if(a=='check'&&B[p]==c)S.acted[p]=true;
- else if(a=='call'&&B[p]<c){C[p]-=c-B[p];B[p]=c;S.acted[p]=true}
- else if(a=='raise'){T=Math.min(T,cap());if(T<=c)return;C[p]-=T-B[p];B[p]=T;S.acted=S.acted.map((_,s)=>s==p)}
+function act(p,a,T){if(!S)return;if(a=='pick')return doPick(p,T);
+ if(a=='show'){if(S.phase=='over'&&S.res.why=='die'&&S.res.W[0]==p&&!S.showW){S.showW=true;S.log.push((p+1)+'번이 패를 공개했어요');push()}return}if(S.phase!='bet'||S.turn!=p)return;const B=S.bets,C=S.chips,c=cur(),say=t=>{S.last[p]=t;S.log.push((p+1)+'번 '+t)};
+ if(a=='die'){say('다이');S.in[p]=false;if(left()==1)return finish([S.in.indexOf(true)],'die')}
+ else if(a=='check'&&B[p]==c){say('체크');S.acted[p]=true}
+ else if(a=='call'&&B[p]<c){say('콜 +'+(c-B[p]));C[p]-=c-B[p];B[p]=c;S.acted[p]=true}
+ else if(a=='raise'){T=Math.min(T,cap());if(T<=c)return;say((T==cap()?'올인 ':'레이즈 ')+'+'+(T-B[p]));C[p]-=T-B[p];B[p]=T;S.acted=S.acted.map((_,s)=>s==p)}
  else return;
  nextTurn(p);push()}
 function drop(s){if(s<1||!S.started)return;S.dc[s]=true;
@@ -127,8 +131,8 @@ function drop(s){if(s<1||!S.started)return;S.dc[s]=true;
  push()}
 function nextHand(){if(!S||S.phase!='over')return;if(S.over)S.chips=S.chips.map(()=>1000);deal()}
 const view=i=>({me:i,chips:S.chips,bets:S.bets,in:S.in,turn:S.turn,phase:S.phase,my:S.hands[i],
- hands:S.reveal?S.hands.map((h,s)=>S.in[s]?h:null):null,res:S.res,over:S.over,dc:S.dc,cur:cur(),mode:S.mode,pk:S.reveal?S.pick:null,mp:S.pick[i],pend:S.in.map((x,s)=>x&&!S.pick[s])});
-function push(){if(test){if(S.phase=='bet')me=S.turn;else if(S.phase=='pick'){const q=S.in.findIndex((x,i)=>x&&!S.pick[i]);if(q>=0)me=q}}V=view(me);render();conns.forEach((c,s)=>c&&c.open&&c.send(view(s)))}
+ hands:S.reveal?S.hands.map((h,s)=>S.in[s]?h:null):S.showW?S.hands.map((h,s)=>s==S.res.W[0]?h:null):null,res:S.res,over:S.over,dc:S.dc,cur:cur(),mode:S.mode,pk:S.reveal?S.pick:null,mp:S.pick[i],pend:S.in.map((x,s)=>x&&!S.pick[s]),last:S.last,log:S.log.slice(-3),sw:!!S.showW});
+function push(){if(test){if(S.phase=='bet')me=S.turn;else if(S.phase=='pick'){const q=S.in.findIndex((x,i)=>x&&!S.pick[i]);if(q>=0)me=q}else if(S.phase=='over'&&S.res.why=='die')me=S.res.W[0]}V=view(me);render();conns.forEach((c,s)=>c&&c.open&&c.send(view(s)))}
 const w=(a,b)=>'<g stroke="'+a+'" stroke-width="2.5" fill="none"><path d="M6 6q14 2 28 0M12 6v22M20 6v28M28 6v20"/></g><g fill="'+b+'"><ellipse cx="12" cy="26" rx="3" ry="6"/><ellipse cx="20" cy="31" rx="3" ry="6"/><ellipse cx="28" cy="24" rx="3" ry="6"/></g>';
 const A=[0,
 '<path d="M20 6l-9 12h5l-7 10h22l-7-10h5z" fill="#2f6b3a"/><circle cx="31" cy="9" r="5" fill="#c8372d"/><rect x="18" y="28" width="4" height="8" fill="#6b4a2b"/>',
@@ -145,10 +149,13 @@ w('#6b2a22','#c8372d'),
 const card=(c,i)=>c.b?'<div class="card back"></div>':`<div class="card ${c.t}" data-i="${i}"><b>${c.m}</b><svg viewBox="0 0 40 40">${A[c.m]}</svg><span>${c.t=='g'?'광':c.t=='y'?'열끗':''}</span></div>`;
 const cc=(c,i,k)=>k&&!c.b?card(c,i).replace('class="card ','class="card '+k+' '):card(c,i);
 function render(){$('lobby').hidden=true;$('game').hidden=false;
- const m=V.me,B=V.bets,C=V.chips,pot=B.reduce((a,b)=>a+b,0),my=V.my||[],md=V.mode,fin=(h,s)=>md==3&&V.pk&&V.pk[s]?V.pk[s].map(i=>h[i]):h;
+ const m=V.me,B=V.bets,C=V.chips,pot=B.reduce((a,b)=>a+b,0),my=V.my||[],md=V.mode,fin=(h,s)=>md==3?(V.pk&&V.pk[s]?V.pk[s].map(i=>h[i]):bestOf(h)):h;
  st(test?`테스트 모드 · 지금 ${m+1}번 자리예요`:'');
+ const key=V.phase+'|'+V.turn+'|'+V.bets+'|'+V.log.length+'|'+(V.res?V.res.W:'');
+ if(key!=lk){lk=key;hold=Date.now()+(V.phase=='bet'?1000:V.phase=='over'?(V.res.why=='show'?4000:2500):0);if(hold>Date.now())setTimeout(render,hold-Date.now()+30)}
+ const dis=Date.now()<hold?' disabled':'';
  $('opps').innerHTML=B.map((_,s)=>{if(s==m)return'';const i=V.in[s],h=V.hands&&V.hands[s];
-  return`<div class="opp${V.turn==s&&V.phase=='bet'?' t':''}${i?'':' x'}"><b>${s+1}번</b>${V.dc[s]?' (나감)':''}<br>칩 ${C[s]}<br>베팅 ${B[s]}`+
+  return`<div class="opp${V.turn==s&&V.phase=='bet'?' t':''}${i?'':' x'}${V.phase=='over'&&V.res.W.includes(s)?' w':''}"><b>${s+1}번</b>${V.dc[s]?' (나감)':''}<br>칩 ${C[s]}<br>베팅 ${B[s]}<br><span class="act">${V.phase=='over'?(V.res.W.includes(s)?'승리':''):V.last[s]||''}</span>`+
   (i?`<div class="cards">${(h||Array(md).fill({b:1})).map((c,j)=>cc(c,j,h&&V.pk&&V.pk[s]&&!V.pk[s].includes(j)?'dim':'')).join('')}</div>${h?ev(fin(h,s)).n:V.phase=='pick'?(V.pend[s]?'고르는 중…':'선택 완료'):'&nbsp;'}`:`<div class="cards"></div>${B[s]?'다이':'관전'}`)+'</div>'}).join('');
  if(V.phase!='pick'||V.mp)sel=[];
  const ch=V.mp||null,c2=sel.length==2?sel.map(j=>my[j]):ch?ch.map(j=>my[j]):null;
@@ -160,19 +167,20 @@ function render(){$('lobby').hidden=true;$('game').hidden=false;
  let msg='',acts='';
  if(V.phase=='bet'){const t=V.turn;msg=t==m?'내 차례예요':`${t+1}번이 고민 중…`;
   if(t==m){const c=V.cur,toCall=c-B[m],mx=Math.min(...B.map((b,s)=>V.in[s]?b+C[s]:1e9)),mn=c+10,cl=x=>Math.min(Math.max(x,mn),mx);
-   acts=toCall?`<button class="r" data-a="call">콜 +${toCall}</button>`:'<button class="r" data-a="check">체크</button>';
+   acts=toCall?`<button class="r" data-a="call"${dis}>콜 +${toCall}</button>`:`<button class="r" data-a="check"${dis}>체크</button>`;
    if(mx>c){const seen=new Set;for(const[n,t0]of[['하프',r10(c+pot/2)],['풀',c+pot],['올인',mx]]){const x=cl(t0);if(x<=c||seen.has(x))continue;seen.add(x);
-    acts+=`<button data-a="raise" data-t="${x}">${x==mx?'올인':n} +${x-B[m]}</button>`}}
-   acts+='<button class="d" data-a="die">다이</button>'}}
+    acts+=`<button data-a="raise" data-t="${x}"${dis}>${x==mx?'올인':n} +${x-B[m]}</button>`}}
+   acts+=`<button class="d" data-a="die"${dis}>다이</button>`}}
+ else if(V.phase=='wait')msg='베팅이 끝났어요. 잠시 뒤 패를 공개해요…';
  else if(V.phase=='pick'){const np=V.pend.filter(Boolean).length;
   msg=!my.length?'다른 사람들이 패를 고르는 중…':V.mp?`다른 사람을 기다려요 (${np}명)`:'남길 두 장을 눌러 고르세요';
   if(my.length&&!V.mp)acts=`<button class="r" data-a="pick"${sel.length==2?'':' disabled'}>이 2장으로 결정</button>`}
  else{const r=V.res,W=r.W;
-  if(r.why=='die')msg=W[0]==m?'모두 다이! 판돈은 내 거예요':`${W[0]+1}번이 판돈을 가져가요 (나머지는 다이)`;
+  if(r.why=='die')msg=W[0]==m?(V.sw?'모두 다이! 판돈은 내 거예요. 패를 공개했어요.':'모두 다이! 판돈은 내 거예요. 내 패를 공개할지 골라요.'):`${W[0]+1}번이 판돈을 가져가요 (나머지는 다이)`;
   else msg=(W.includes(m)?'내가 이겼어요 · ':'')+W.map(s=>(s==m?'나':s+1+'번')+' '+r.n[s]).join(' · ')+(W.length>1?' 무승부, 판돈을 나눠요':' 승리');
   if(V.over)msg+=' · 게임이 끝났어요.';
-  acts=`<button class="r" data-a="next">${V.over?'새 게임':'다음 판'}</button>`}
- $('msg').textContent=msg;$('acts').innerHTML=acts}
+  const sh=r.why=='die'&&W[0]==m&&!V.sw;acts=(sh?'<button class="d" data-a="show">내 패 공개</button>':'')+`<button class="r" data-a="next"${dis}>${dis?'결과 확인 중…':V.over?'새 게임':sh?'비공개로 다음 판':'다음 판'}</button>`}
+ $('msg').className=V.phase=='over'?'rs':'';$('msg').textContent=msg;$('lg').textContent=V.log.join('  ·  ');$('ml').textContent=V.phase=='over'?(V.res.W.includes(m)?'승리':''):V.last[m]||'';$('acts').innerHTML=acts}
 $('acts').onclick=e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.a,t=a=='pick'?sel:+b.dataset.t||0;
  if(guest)conn&&conn.send({a,t});else a=='next'?nextHand():act(me,a,t)};
 /* ---- network ---- */
