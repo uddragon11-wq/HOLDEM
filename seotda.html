@@ -29,6 +29,16 @@ input{width:130px;text-align:center;background:var(--cream);color:var(--ink)}
 .card.g{border-color:var(--gold);box-shadow:0 0 0 2px var(--ink)}.card.g span{background:var(--gold)}
 .card.y span{background:var(--red);color:var(--cream)}
 .card.back{background:repeating-linear-gradient(45deg,var(--red) 0 8px,#8f251e 8px 16px)}
+.card.sel{transform:translateY(-10px);box-shadow:0 0 0 3px var(--gold)}.card.dim{opacity:.4}
+#mcards.pk .card{cursor:pointer;animation:none}
+.card svg{width:80%;height:50%}
+#pop{position:fixed;inset:0;z-index:9;overflow:auto;background:linear-gradient(var(--blk2),#1d2216);padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 20px)}
+#pop[hidden]{display:none}#pop h2{margin:0 0 6px;font:28px 'Black Han Sans',sans-serif}#pn{font-size:13px;opacity:.85;margin:0 50px 12px 0}
+#px{position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:10px;width:44px;height:44px;border-radius:50%;padding:0;font-size:22px;line-height:1;z-index:10}
+.pr{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;border:2px solid transparent;margin-bottom:6px}
+.pr.me{border-color:var(--gold);background:rgba(224,179,64,.22)}
+.pr .cards{min-height:0;gap:5px;flex:none}.pr .card{width:42px;height:62px;border-width:2px;padding:3px 0}.pr .card b{font-size:20px}.pr .card span{font-size:9px;min-height:11px;padding:0 3px}
+.pr em{font-style:normal;font-size:12px;opacity:.85;display:block}.pr .tag{margin-left:auto;color:var(--gold);font-weight:700;font-size:13px}
 .opps{display:flex;gap:6px}
 .opp{flex:1;min-width:0;border:2px solid rgba(242,234,211,.3);border-radius:8px;padding:6px 2px;text-align:center;font-size:12px}
 .opp.t{border-color:var(--gold);background:rgba(0,0,0,.2)}.opp.x{opacity:.5}
@@ -47,6 +57,7 @@ details{font-size:13px;opacity:.85;margin:10px 0 20px}
 <h1>섯다</h1>
 <div id="entry">
 <p>2~4명이 함께하는 섯다. 로그인 필요 없어요.</p>
+<p>게임 방식</p><div id="md"><button data-m="2" class="r">2장 섯다</button><button data-m="3" class="d">3장 섯다</button></div>
 <button id="mk" class="r">방 만들기</button>
 <p>친구가 만든 방에 들어가기</p>
 <input id="code" inputmode="numeric" maxlength="4" placeholder="코드 4자리"><button id="jn">입장</button>
@@ -56,19 +67,19 @@ details{font-size:13px;opacity:.85;margin:10px 0 20px}
 <button id="go" class="r" disabled>게임 시작</button></div>
 </div>
 <div id="game" hidden>
+<div style="text-align:right"><button id="pb" class="d">족보 보기</button></div>
 <div class="opps" id="opps"></div>
 <div class="mid"><div>판돈 <span class="big" id="pot"></span></div><div id="msg"></div></div>
 <div class="cards" id="mcards"></div><div id="hname"></div>
 <div class="row"><span>내 칩 <b id="mc"></b></span><span>내 베팅 <b id="mb"></b></span></div>
 <div id="acts"></div>
-<details><summary>족보 보기</summary>
-38광땡 &gt; 18광땡 &gt; 13광땡 &gt; 장땡~1땡 &gt; 알리(1·2) &gt; 독사(1·4) &gt; 구삥(1·9) &gt; 장삥(1·10) &gt; 장사(4·10) &gt; 세륙(4·6) &gt; 갑오(9끗)~망통.<br>
-암행어사(4열끗+7열끗)는 18·13광땡을 이기고, 땡잡이(3광+7열끗)는 1~9땡을 이겨요. 다이하지 않은 사람 중 가장 센 패가 판돈을 가져가고, 같은 패끼리는 판돈을 나눠요. 구사 재경기는 없어요. 누군가 올인하면 그 칩이 가장 적은 사람의 칩만큼으로 베팅 한도가 정해져요.</details>
+
 </div>
+<div id="pop" hidden role="dialog" aria-label="족보"><button id="px" aria-label="닫기">✕</button><h2>족보</h2><p id="pn"></p><div id="pl"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const $=i=>document.getElementById(i),E=['🌲','🌸','🌺','🐦','🌿','🦋','🐗','🌕','🍶','🍁'],st=t=>$('st').innerHTML=t,r10=x=>Math.ceil(x/10)*10;
-let S,V,peer,conn,me=0,test=false,guest=false,conns=[],gs=[];
+let S,V,peer,conn,me=0,test=false,guest=false,conns=[],gs=[],mode=2,sel=[],curHand='';
 function deck(){const d=[];for(let m=1;m<=10;m++)d.push({m,t:[1,3,8].includes(m)?'g':[4,7].includes(m)?'y':'n'},{m,t:'n'});
  for(let i=d.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[d[i],d[j]]=[d[j],d[i]]}return d}
 function ev(h){const[a,b]=h,s=[a.m,b.m].sort((x,y)=>x-y).join(',');
@@ -81,22 +92,28 @@ function ev(h){const[a,b]=h,s=[a.m,b.m].sort((x,y)=>x-y).join(',');
  const k=(a.m+b.m)%10;return{r:k,n:k==9?'갑오(9끗)':k?k+'끗':'망통'}}
 function cmp(x,y){const a=ev(x),b=ev(y),kw=(p,q)=>(p.sp=='a'&&(q.r==990||q.r==980))||(p.sp=='d'&&q.r>800&&q.r<810);
  return kw(a,b)?1:kw(b,a)?-1:Math.sign(a.r-b.r)}
+const bestOf=h=>(h.length==3?[[0,1],[0,2],[1,2]].map(p=>p.map(i=>h[i])):[h]).reduce((a,b)=>cmp(b,a)>0?b:a);
 /* ---- host: game logic ---- */
 const alive=s=>S.chips[s]>0&&!S.dc[s],left=()=>S.in.filter(Boolean).length;
 const cur=()=>Math.max(0,...S.bets.filter((b,s)=>S.in[s])),done=s=>S.bets[s]==cur()&&(S.acted[s]||S.chips[s]==0);
 const cap=()=>Math.min(...S.in.map((x,s)=>x?S.bets[s]+S.chips[s]:1e9));
 function deal(){const d=deck();let k=0;S.in=S.chips.map((c,s)=>alive(s));
  do{S.dealer=(S.dealer+1)%S.n}while(!S.in[S.dealer]);
- S.hands=S.in.map(x=>x?[d[k++],d[k++]]:null);S.bets=S.in.map(x=>x?10:0);S.chips=S.chips.map((c,s)=>S.in[s]?c-10:c);
+ S.hands=S.in.map(x=>x?Array.from({length:S.mode},()=>d[k++]):null);S.pick=S.in.map(()=>null);S.bets=S.in.map(x=>x?10:0);S.chips=S.chips.map((c,s)=>S.in[s]?c-10:c);
  S.acted=S.in.map(()=>false);S.phase='bet';S.res=null;S.reveal=false;S.over=false;nextTurn(S.dealer);push()}
 function best(){const L=S.in.map((x,s)=>x?s:-1).filter(s=>s>=0);let c=L[0];
- for(const s of L)if(cmp(S.hands[s],S.hands[c])>0)c=s;return L.filter(s=>cmp(S.hands[c],S.hands[s])==0)}
-function nextTurn(p){for(let k=1;k<=S.n;k++){const s=(p+k)%S.n;if(S.in[s]&&!done(s)){S.turn=s;return}}finish(best(),'show')}
+ for(const s of L)if(cmp(fh(s),fh(c))>0)c=s;return L.filter(s=>cmp(fh(c),fh(s))==0)}
+const fh=s=>S.mode==3?(S.pick[s]?S.pick[s].map(i=>S.hands[s][i]):null):S.hands[s];
+const endBet=()=>S.mode==3?startPick():finish(best(),'show');
+function startPick(){S.phase='pick';S.pick=S.in.map(()=>null);push()}
+function pickCheck(){S.in.every((x,s)=>!x||S.pick[s])?finish(best(),'show'):push()}
+function doPick(p,T){if(S.phase!='pick'||!S.in[p]||S.pick[p]||!Array.isArray(T)||T.length!=2||T[0]==T[1]||T.some(i=>!(i>=0&&i<3)))return;S.pick[p]=[...T].sort();pickCheck()}
+function nextTurn(p){for(let k=1;k<=S.n;k++){const s=(p+k)%S.n;if(S.in[s]&&!done(s)){S.turn=s;return}}endBet()}
 function finish(W,why){S.phase='over';S.reveal=why=='show';const pot=S.bets.reduce((a,b)=>a+b,0),sh=Math.floor(pot/W.length);
  W.forEach((s,i)=>S.chips[s]+=sh+(i?0:pot-sh*W.length));
- S.res={W,why,n:S.hands.map((h,s)=>S.in[s]?ev(h).n:null)};
+ S.res={W,why,n:S.hands.map((h,s)=>S.in[s]&&fh(s)?ev(fh(s)).n:null)};
  S.over=S.chips.filter((c,s)=>c>0&&!S.dc[s]).length<=1;push()}
-function act(p,a,T){if(!S||S.phase!='bet'||S.turn!=p)return;const B=S.bets,C=S.chips,c=cur();
+function act(p,a,T){if(!S)return;if(a=='pick')return doPick(p,T);if(S.phase!='bet'||S.turn!=p)return;const B=S.bets,C=S.chips,c=cur();
  if(a=='die'){S.in[p]=false;if(left()==1)return finish([S.in.indexOf(true)],'die')}
  else if(a=='check'&&B[p]==c)S.acted[p]=true;
  else if(a=='call'&&B[p]<c){C[p]-=c-B[p];B[p]=c;S.acted[p]=true}
@@ -104,22 +121,41 @@ function act(p,a,T){if(!S||S.phase!='bet'||S.turn!=p)return;const B=S.bets,C=S.c
  else return;
  nextTurn(p);push()}
 function drop(s){if(s<1||!S.started)return;S.dc[s]=true;
- if(S.phase=='bet'&&S.in[s]){S.in[s]=false;if(left()==1)return finish([S.in.indexOf(true)],'die');
-  if(S.turn==s)nextTurn(s);else if(S.in.every((x,t)=>!x||done(t)))return finish(best(),'show')}
+ if(S.in[s]&&(S.phase=='bet'||S.phase=='pick')){S.in[s]=false;if(left()==1)return finish([S.in.indexOf(true)],'die');
+  if(S.phase=='pick')return pickCheck();
+  if(S.turn==s)nextTurn(s);else if(S.in.every((x,t)=>!x||done(t)))return endBet()}
  push()}
 function nextHand(){if(!S||S.phase!='over')return;if(S.over)S.chips=S.chips.map(()=>1000);deal()}
 const view=i=>({me:i,chips:S.chips,bets:S.bets,in:S.in,turn:S.turn,phase:S.phase,my:S.hands[i],
- hands:S.reveal?S.hands.map((h,s)=>S.in[s]?h:null):null,res:S.res,over:S.over,dc:S.dc,cur:cur()});
-function push(){if(test&&S.phase=='bet')me=S.turn;V=view(me);render();conns.forEach((c,s)=>c&&c.open&&c.send(view(s)))}
+ hands:S.reveal?S.hands.map((h,s)=>S.in[s]?h:null):null,res:S.res,over:S.over,dc:S.dc,cur:cur(),mode:S.mode,pk:S.reveal?S.pick:null,mp:S.pick[i],pend:S.in.map((x,s)=>x&&!S.pick[s])});
+function push(){if(test){if(S.phase=='bet')me=S.turn;else if(S.phase=='pick'){const q=S.in.findIndex((x,i)=>x&&!S.pick[i]);if(q>=0)me=q}}V=view(me);render();conns.forEach((c,s)=>c&&c.open&&c.send(view(s)))}
+const w=(a,b)=>'<g stroke="'+a+'" stroke-width="2.5" fill="none"><path d="M6 6q14 2 28 0M12 6v22M20 6v28M28 6v20"/></g><g fill="'+b+'"><ellipse cx="12" cy="26" rx="3" ry="6"/><ellipse cx="20" cy="31" rx="3" ry="6"/><ellipse cx="28" cy="24" rx="3" ry="6"/></g>';
+const A=[0,
+'<path d="M20 6l-9 12h5l-7 10h22l-7-10h5z" fill="#2f6b3a"/><circle cx="31" cy="9" r="5" fill="#c8372d"/><rect x="18" y="28" width="4" height="8" fill="#6b4a2b"/>',
+'<path d="M6 34C14 24 22 22 34 8" stroke="#6b4a2b" stroke-width="3" fill="none"/><g fill="#e8707a"><circle cx="14" cy="26" r="5"/><circle cx="24" cy="18" r="5"/><circle cx="31" cy="10" r="4"/></g><g fill="#f6d36b"><circle cx="14" cy="26" r="1.5"/><circle cx="24" cy="18" r="1.5"/></g>',
+'<g fill="#f4a0b5"><circle cx="13" cy="26" r="7"/><circle cx="26" cy="20" r="7"/><circle cx="24" cy="32" r="5"/></g><path d="M0 4h40v7H0z" fill="#c8372d"/>',
+w('#2a2330','#5b3f7a'),
+'<g stroke="#2f6b3a" stroke-width="2.5" fill="none"><path d="M8 36C12 18 18 10 30 6M14 36C16 22 24 14 34 14"/></g><circle cx="30" cy="8" r="4" fill="#c8372d"/>',
+'<circle cx="20" cy="20" r="11" fill="#d94a6b"/><circle cx="20" cy="20" r="6" fill="#f08aa0"/><circle cx="20" cy="20" r="2.5" fill="#f6d36b"/><path d="M4 34l10-6M36 34l-10-6" stroke="#2f6b3a" stroke-width="3"/>',
+w('#6b2a22','#c8372d'),
+'<circle cx="20" cy="15" r="9" fill="#c8372d"/><path d="M0 32Q12 20 22 28T40 26V40H0z" fill="#2a2330"/>',
+'<g fill="#f6c63b"><circle cx="20" cy="11" r="5"/><circle cx="11" cy="20" r="5"/><circle cx="29" cy="20" r="5"/><circle cx="20" cy="29" r="5"/></g><circle cx="20" cy="20" r="5" fill="#c8372d"/>',
+'<path d="M20 4l4 9 8-3-3 9 8 2-9 5 3 9-11-5-11 5 3-9-9-5 8-2-3-9 8 3z" fill="#c8372d"/>'];
 /* ---- ui ---- */
-const card=c=>c.b?'<div class="card back"></div>':`<div class="card ${c.t}"><b>${c.m}</b><i>${E[c.m-1]}</i><span>${c.t=='g'?'광':c.t=='y'?'열끗':''}</span></div>`;
+const card=(c,i)=>c.b?'<div class="card back"></div>':`<div class="card ${c.t}" data-i="${i}"><b>${c.m}</b><svg viewBox="0 0 40 40">${A[c.m]}</svg><span>${c.t=='g'?'광':c.t=='y'?'열끗':''}</span></div>`;
+const cc=(c,i,k)=>k&&!c.b?card(c,i).replace('class="card ','class="card '+k+' '):card(c,i);
 function render(){$('lobby').hidden=true;$('game').hidden=false;
- const m=V.me,B=V.bets,C=V.chips,pot=B.reduce((a,b)=>a+b,0),my=V.my||[];
+ const m=V.me,B=V.bets,C=V.chips,pot=B.reduce((a,b)=>a+b,0),my=V.my||[],md=V.mode,fin=(h,s)=>md==3&&V.pk&&V.pk[s]?V.pk[s].map(i=>h[i]):h;
  st(test?`테스트 모드 · 지금 ${m+1}번 자리예요`:'');
  $('opps').innerHTML=B.map((_,s)=>{if(s==m)return'';const i=V.in[s],h=V.hands&&V.hands[s];
   return`<div class="opp${V.turn==s&&V.phase=='bet'?' t':''}${i?'':' x'}"><b>${s+1}번</b>${V.dc[s]?' (나감)':''}<br>칩 ${C[s]}<br>베팅 ${B[s]}`+
-  (i?`<div class="cards">${(h||[{b:1},{b:1}]).map(card).join('')}</div>${h?ev(h).n:'&nbsp;'}`:`<div class="cards"></div>${B[s]?'다이':'관전'}`)+'</div>'}).join('');
- $('mcards').innerHTML=my.map(card).join('');$('hname').textContent=my.length?'내 패: '+ev(my).n:'관전 중이에요';
+  (i?`<div class="cards">${(h||Array(md).fill({b:1})).map((c,j)=>cc(c,j,h&&V.pk&&V.pk[s]&&!V.pk[s].includes(j)?'dim':'')).join('')}</div>${h?ev(fin(h,s)).n:V.phase=='pick'?(V.pend[s]?'고르는 중…':'선택 완료'):'&nbsp;'}`:`<div class="cards"></div>${B[s]?'다이':'관전'}`)+'</div>'}).join('');
+ if(V.phase!='pick'||V.mp)sel=[];
+ const ch=V.mp||null,c2=sel.length==2?sel.map(j=>my[j]):ch?ch.map(j=>my[j]):null;
+ $('mcards').className='cards'+(V.phase=='pick'&&!V.mp&&my.length?' pk':'');
+ $('mcards').innerHTML=my.map((c,j)=>cc(c,j,sel.includes(j)?'sel':ch&&!ch.includes(j)?'dim':'')).join('');
+ $('hname').textContent=!my.length?'관전 중이에요':md==3?(c2?'선택한 패: ':'가능한 최고 패: ')+ev(c2||bestOf(my)).n:'내 패: '+ev(my).n;
+ const hd=my.length?(md==3?(c2||bestOf(my)):my):null;curHand=hd?ev(hd).n:'';if(!$('pop').hidden)buildPop();
  $('mc').textContent=C[m];$('mb').textContent=B[m];$('pot').textContent=pot;
  let msg='',acts='';
  if(V.phase=='bet'){const t=V.turn;msg=t==m?'내 차례예요':`${t+1}번이 고민 중…`;
@@ -128,16 +164,19 @@ function render(){$('lobby').hidden=true;$('game').hidden=false;
    if(mx>c){const seen=new Set;for(const[n,t0]of[['하프',r10(c+pot/2)],['풀',c+pot],['올인',mx]]){const x=cl(t0);if(x<=c||seen.has(x))continue;seen.add(x);
     acts+=`<button data-a="raise" data-t="${x}">${x==mx?'올인':n} +${x-B[m]}</button>`}}
    acts+='<button class="d" data-a="die">다이</button>'}}
+ else if(V.phase=='pick'){const np=V.pend.filter(Boolean).length;
+  msg=!my.length?'다른 사람들이 패를 고르는 중…':V.mp?`다른 사람을 기다려요 (${np}명)`:'남길 두 장을 눌러 고르세요';
+  if(my.length&&!V.mp)acts=`<button class="r" data-a="pick"${sel.length==2?'':' disabled'}>이 2장으로 결정</button>`}
  else{const r=V.res,W=r.W;
-  if(r.why=='die')msg=W[0]==m?'모두 다이! 판돈은 내 거예요 🎉':`${W[0]+1}번이 판돈을 가져가요 (나머지는 다이)`;
-  else msg=(W.includes(m)?'🎉 ':'')+W.map(s=>(s==m?'나':s+1+'번')+' '+r.n[s]).join(' · ')+(W.length>1?' 무승부, 판돈을 나눠요':' 승리');
+  if(r.why=='die')msg=W[0]==m?'모두 다이! 판돈은 내 거예요':`${W[0]+1}번이 판돈을 가져가요 (나머지는 다이)`;
+  else msg=(W.includes(m)?'내가 이겼어요 · ':'')+W.map(s=>(s==m?'나':s+1+'번')+' '+r.n[s]).join(' · ')+(W.length>1?' 무승부, 판돈을 나눠요':' 승리');
   if(V.over)msg+=' · 게임이 끝났어요.';
   acts=`<button class="r" data-a="next">${V.over?'새 게임':'다음 판'}</button>`}
  $('msg').textContent=msg;$('acts').innerHTML=acts}
-$('acts').onclick=e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.a,t=+b.dataset.t||0;
+$('acts').onclick=e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.a,t=a=='pick'?sel:+b.dataset.t||0;
  if(guest)conn&&conn.send({a,t});else a=='next'?nextHand():act(me,a,t)};
 /* ---- network ---- */
-function lobbyUpd(){const n=1+gs.filter(g=>g.open).length;$('cnt').textContent=n+'명 입장 (최대 4명)';$('go').disabled=n<2;gs.forEach(g=>g.open&&g.send({wait:n}))}
+function lobbyUpd(){const n=1+gs.filter(g=>g.open).length;$('cnt').textContent=mode+'장 섯다 · '+n+'명 입장 (최대 4명)';$('go').disabled=n<2;gs.forEach(g=>g.open&&g.send({wait:n,mode}))}
 $('mk').onclick=function host(){const code=String(Math.random()*9000+1000|0);st('방 만드는 중…');me=0;S={started:false};peer=new Peer('seotda'+code);
  peer.on('open',()=>{st('');$('entry').hidden=true;$('hl').hidden=false;$('cd').textContent=code;lobbyUpd()});
  peer.on('connection',c=>{if(S.started||gs.length>=3){c.on('open',()=>c.close());return}
@@ -146,11 +185,24 @@ $('mk').onclick=function host(){const code=String(Math.random()*9000+1000|0);st(
   c.on('close',()=>{if(S.started)drop(conns.indexOf(c));else{gs=gs.filter(x=>x!=c);lobbyUpd()}})});
  peer.on('error',e=>{if(e.type=='unavailable-id'){peer.destroy();host()}else st('연결 오류: '+e.type)})};
 $('go').onclick=()=>{gs=gs.filter(g=>g.open);conns=[null,...gs];const n=1+gs.length;
- S={started:true,n,chips:Array(n).fill(1000),dc:Array(n).fill(false),dealer:n-1};deal()};
+ S={started:true,mode,n,chips:Array(n).fill(1000),dc:Array(n).fill(false),dealer:n-1};deal()};
 $('jn').onclick=()=>{const c=$('code').value.trim();if(c.length!=4)return st('코드 4자리를 입력해 주세요');guest=true;st('연결 중…');peer=new Peer();
  peer.on('open',()=>{conn=peer.connect('seotda'+c,{reliable:true});
-  conn.on('data',d=>{if(d.wait)st('방장이 게임을 시작하길 기다리는 중 · 현재 '+d.wait+'명');else{V=d;render()}});
+  conn.on('data',d=>{if(d.wait)st(d.mode+'장 섯다 · 방장이 게임을 시작하길 기다리는 중 · 현재 '+d.wait+'명');else{V=d;render()}});
   conn.on('close',()=>st('연결이 끊겼어요. 새로고침하고 다시 입장해 주세요.'))});
  peer.on('error',e=>st(e.type=='peer-unavailable'?'그 코드의 방이 없어요. 코드를 다시 확인해 주세요.':'연결 오류: '+e.type))};
-$('ts').onclick=()=>{test=true;me=0;S={started:true,n:4,chips:Array(4).fill(1000),dc:Array(4).fill(false),dealer:3};deal()};
+const PR=[['38광땡','38광땡','3광+8광',[[3,'g'],[8,'g']]],['18광땡','18광땡','1광+8광',[[1,'g'],[8,'g']]],['13광땡','13광땡','1광+3광',[[1,'g'],[3,'g']]],
+['장땡','장땡','10+10',[[10,'n'],[10,'n']]],['땡','9땡 ~ 1땡','같은 월 두 장 (숫자가 큰 쪽이 위)',[[9,'n'],[9,'n']]],
+['알리','알리','1+2',[[1,'n'],[2,'n']]],['독사','독사','1+4',[[1,'n'],[4,'n']]],['구삥','구삥','1+9',[[1,'n'],[9,'n']]],['장삥','장삥','1+10',[[1,'n'],[10,'n']]],['장사','장사','4+10',[[4,'n'],[10,'n']]],['세륙','세륙','4+6',[[4,'n'],[6,'n']]],
+['끗','갑오(9끗) ~ 망통','두 장 합의 일의 자리 (9끗이 가장 높아요)',[[4,'n'],[5,'n']]],
+['암행어사','암행어사','4열끗+7열끗. 18·13광땡을 이겨요',[[4,'y'],[7,'y']]],['땡잡이','땡잡이','3광+7열끗. 1~9땡을 이겨요',[[3,'g'],[7,'y']]]];
+const pkey=n=>/^\d땡$/.test(n)?'땡':/끗|망통/.test(n)?'끗':n;
+function buildPop(){const k=pkey(curHand);
+ $('pn').textContent='위쪽일수록 강해요. 같은 패끼리는 무승부(판돈 나눔)이고 구사 재경기는 없어요.'+(V&&V.mode==3?' 3장 섯다는 세 장 중 두 장을 골라 승부해요.':'');
+ $('pl').innerHTML=PR.map(([key,t,d,cs])=>`<div class="pr${key==k?' me':''}"><div class="cards">${cs.map(([m,tt],i)=>card({m,t:tt},i)).join('')}</div><div><b>${t}</b><em>${d}</em></div>${key==k?'<span class="tag">◀ 내 패 ('+curHand+')</span>':''}</div>`).join('')}
+$('pb').onclick=()=>{buildPop();$('pop').hidden=false};$('px').onclick=()=>$('pop').hidden=true;
+onkeydown=e=>{if(e.key=='Escape')$('pop').hidden=true};
+$('md').onclick=e=>{const b=e.target.closest('button');if(!b)return;mode=+b.dataset.m;[...$('md').children].forEach(x=>x.className=x==b?'r':'d')};
+$('mcards').onclick=e=>{const c=e.target.closest('.card');if(!c||!V||V.phase!='pick'||V.mp||!V.my)return;const j=+c.dataset.i;sel=sel.includes(j)?sel.filter(x=>x!=j):[...sel,j].slice(-2);render()};
+$('ts').onclick=()=>{test=true;me=0;S={started:true,mode,n:4,chips:Array(4).fill(1000),dc:Array(4).fill(false),dealer:3};deal()};
 </script></body></html>
