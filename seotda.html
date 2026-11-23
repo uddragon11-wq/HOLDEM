@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>섯다</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
+<style>
+:root{--blk:#4a5238;--blk2:#2f3624;--cream:#f2ead3;--ink:#1d1a16;--red:#c8372d;--gold:#e0b340}
+*{box-sizing:border-box}
+body{margin:0;min-height:100dvh;color:var(--cream);font:16px/1.4 system-ui,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+background:repeating-linear-gradient(90deg,transparent 0 46px,rgba(0,0,0,.07) 46px 48px),linear-gradient(var(--blk),var(--blk2));
+padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom)}
+h1,.big,.card b{font-family:'Black Han Sans',system-ui,sans-serif;font-weight:400}
+#lobby{max-width:360px;margin:0 auto;padding-top:10vh;text-align:center}
+h1{font-size:64px;margin:0;letter-spacing:4px;border-bottom:6px solid var(--red);display:inline-block;padding:0 12px}
+button,input{font:inherit;border-radius:6px;border:2px solid var(--ink);padding:12px 16px;margin:6px 4px}
+button{background:var(--cream);color:var(--ink);font-weight:700;cursor:pointer}
+button:disabled{opacity:.5}button:active{transform:translateY(1px)}button:focus-visible,input:focus-visible{outline:3px solid var(--gold)}
+button.r{background:var(--red);color:var(--cream)}button.d{background:transparent;color:var(--cream);border-color:var(--cream)}
+input{width:130px;text-align:center;background:var(--cream);color:var(--ink)}
+#mk{width:100%;margin:24px 0 8px;font-size:18px}
+.big{font-size:56px;color:var(--gold);letter-spacing:6px}
+#st{text-align:center;min-height:1.4em;margin:8px 0}
+#game{max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+.row{display:flex;justify-content:space-between;align-items:center;font-size:14px}.row b{color:var(--gold)}
+.cards{display:flex;gap:10px;justify-content:center;min-height:116px}
+.card{width:76px;height:112px;background:var(--cream);color:var(--ink);border:3px solid var(--ink);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:6px 0}
+.card b{font-size:38px;line-height:1}.card i{font-style:normal;font-size:30px}
+.card span{font-size:12px;font-weight:700;min-height:16px;padding:0 6px;border-radius:8px}
+.card.g{border-color:var(--gold);box-shadow:0 0 0 2px var(--ink)}.card.g span{background:var(--gold)}
+.card.y span{background:var(--red);color:var(--cream)}
+.card.back{background:repeating-linear-gradient(45deg,var(--red) 0 8px,#8f251e 8px 16px)}
+.opps{display:flex;gap:6px}
+.opp{flex:1;min-width:0;border:2px solid rgba(242,234,211,.3);border-radius:8px;padding:6px 2px;text-align:center;font-size:12px}
+.opp.t{border-color:var(--gold);background:rgba(0,0,0,.2)}.opp.x{opacity:.5}
+.opp .cards{gap:3px;min-height:0;margin:4px 0}
+.opp .card{width:38px;height:56px;border-width:2px;padding:3px 0;border-radius:5px}
+.opp .card b{font-size:18px}.opp .card i{font-size:13px}.opp .card span{font-size:8px;min-height:10px;padding:0 3px}
+.mid{text-align:center;padding:10px;border-top:2px dashed rgba(242,234,211,.35);border-bottom:2px dashed rgba(242,234,211,.35)}
+.mid .big{font-size:36px;letter-spacing:0}#msg{min-height:44px;margin-top:4px}
+#hname{text-align:center;font-weight:700;color:var(--gold);min-height:1.4em}
+#acts{display:flex;flex-wrap:wrap;justify-content:center}
+details{font-size:13px;opacity:.85;margin:10px 0 20px}
+@media (prefers-reduced-motion:no-preference){#mcards .card{animation:f .3s}@keyframes f{from{transform:translateY(-14px);opacity:0}}}
+</style></head><body>
+<p id="st"></p>
+<div id="lobby">
+<h1>섯다</h1>
+<div id="entry">
+<p>2~4명이 함께하는 섯다. 로그인 필요 없어요.</p>
+<button id="mk" class="r">방 만들기</button>
+<p>친구가 만든 방에 들어가기</p>
+<input id="code" inputmode="numeric" maxlength="4" placeholder="코드 4자리"><button id="jn">입장</button>
+<p>먼저 해보기</p><button id="ts" class="d">혼자 테스트 (4자리)</button>
+</div>
+<div id="hl" hidden><p>친구들에게 이 코드를 알려주세요</p><div class="big" id="cd"></div><p id="cnt"></p>
+<button id="go" class="r" disabled>게임 시작</button></div>
+</div>
+<div id="game" hidden>
+<div class="opps" id="opps"></div>
+<div class="mid"><div>판돈 <span class="big" id="pot"></span></div><div id="msg"></div></div>
+<div class="cards" id="mcards"></div><div id="hname"></div>
+<div class="row"><span>내 칩 <b id="mc"></b></span><span>내 베팅 <b id="mb"></b></span></div>
+<div id="acts"></div>
+<details><summary>족보 보기</summary>
+38광땡 &gt; 18광땡 &gt; 13광땡 &gt; 장땡~1땡 &gt; 알리(1·2) &gt; 독사(1·4) &gt; 구삥(1·9) &gt; 장삥(1·10) &gt; 장사(4·10) &gt; 세륙(4·6) &gt; 갑오(9끗)~망통.<br>
+암행어사(4열끗+7열끗)는 18·13광땡을 이기고, 땡잡이(3광+7열끗)는 1~9땡을 이겨요. 다이하지 않은 사람 중 가장 센 패가 판돈을 가져가고, 같은 패끼리는 판돈을 나눠요. 구사 재경기는 없어요. 누군가 올인하면 그 칩이 가장 적은 사람의 칩만큼으로 베팅 한도가 정해져요.</details>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const $=i=>document.getElementById(i),E=['🌲','🌸','🌺','🐦','🌿','🦋','🐗','🌕','🍶','🍁'],st=t=>$('st').innerHTML=t,r10=x=>Math.ceil(x/10)*10;
+let S,V,peer,conn,me=0,test=false,guest=false,conns=[],gs=[];
+function deck(){const d=[];for(let m=1;m<=10;m++)d.push({m,t:[1,3,8].includes(m)?'g':[4,7].includes(m)?'y':'n'},{m,t:'n'});
+ for(let i=d.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[d[i],d[j]]=[d[j],d[i]]}return d}
+function ev(h){const[a,b]=h,s=[a.m,b.m].sort((x,y)=>x-y).join(',');
+ if(a.t=='g'&&b.t=='g'){if(s=='3,8')return{r:1000,n:'38광땡'};if(s=='1,8')return{r:990,n:'18광땡'};if(s=='1,3')return{r:980,n:'13광땡'}}
+ if(a.m==b.m)return{r:800+a.m,n:a.m==10?'장땡':a.m+'땡'};
+ if(s=='4,7'&&a.t=='y'&&b.t=='y')return{r:1,n:'암행어사',sp:'a'};
+ if(s=='3,7'&&a.t!='n'&&b.t!='n')return{r:0,n:'땡잡이',sp:'d'};
+ const p={'1,2':[600,'알리'],'1,4':[590,'독사'],'1,9':[580,'구삥'],'1,10':[570,'장삥'],'4,10':[560,'장사'],'4,6':[550,'세륙']}[s];
+ if(p)return{r:p[0],n:p[1]};
+ const k=(a.m+b.m)%10;return{r:k,n:k==9?'갑오(9끗)':k?k+'끗':'망통'}}
+function cmp(x,y){const a=ev(x),b=ev(y),kw=(p,q)=>(p.sp=='a'&&(q.r==990||q.r==980))||(p.sp=='d'&&q.r>800&&q.r<810);
+ return kw(a,b)?1:kw(b,a)?-1:Math.sign(a.r-b.r)}
+/* ---- host: game logic ---- */
+const alive=s=>S.chips[s]>0&&!S.dc[s],left=()=>S.in.filter(Boolean).length;
+const cur=()=>Math.max(0,...S.bets.filter((b,s)=>S.in[s])),done=s=>S.bets[s]==cur()&&(S.acted[s]||S.chips[s]==0);
+const cap=()=>Math.min(...S.in.map((x,s)=>x?S.bets[s]+S.chips[s]:1e9));
+function deal(){const d=deck();let k=0;S.in=S.chips.map((c,s)=>alive(s));
+ do{S.dealer=(S.dealer+1)%S.n}while(!S.in[S.dealer]);
+ S.hands=S.in.map(x=>x?[d[k++],d[k++]]:null);S.bets=S.in.map(x=>x?10:0);S.chips=S.chips.map((c,s)=>S.in[s]?c-10:c);
+ S.acted=S.in.map(()=>false);S.phase='bet';S.res=null;S.reveal=false;S.over=false;nextTurn(S.dealer);push()}
+function best(){const L=S.in.map((x,s)=>x?s:-1).filter(s=>s>=0);let c=L[0];
+ for(const s of L)if(cmp(S.hands[s],S.hands[c])>0)c=s;return L.filter(s=>cmp(S.hands[c],S.hands[s])==0)}
+function nextTurn(p){for(let k=1;k<=S.n;k++){const s=(p+k)%S.n;if(S.in[s]&&!done(s)){S.turn=s;return}}finish(best(),'show')}
+function finish(W,why){S.phase='over';S.reveal=why=='show';const pot=S.bets.reduce((a,b)=>a+b,0),sh=Math.floor(pot/W.length);
+ W.forEach((s,i)=>S.chips[s]+=sh+(i?0:pot-sh*W.length));
+ S.res={W,why,n:S.hands.map((h,s)=>S.in[s]?ev(h).n:null)};
+ S.over=S.chips.filter((c,s)=>c>0&&!S.dc[s]).length<=1;push()}
+function act(p,a,T){if(!S||S.phase!='bet'||S.turn!=p)return;const B=S.bets,C=S.chips,c=cur();
+ if(a=='die'){S.in[p]=false;if(left()==1)return finish([S.in.indexOf(true)],'die')}
+ else if(a=='check'&&B[p]==c)S.acted[p]=true;
+ else if(a=='call'&&B[p]<c){C[p]-=c-B[p];B[p]=c;S.acted[p]=true}
+ else if(a=='raise'){T=Math.min(T,cap());if(T<=c)return;C[p]-=T-B[p];B[p]=T;S.acted=S.acted.map((_,s)=>s==p)}
+ else return;
+ nextTurn(p);push()}
+function drop(s){if(s<1||!S.started)return;S.dc[s]=true;
+ if(S.phase=='bet'&&S.in[s]){S.in[s]=false;if(left()==1)return finish([S.in.indexOf(true)],'die');
+  if(S.turn==s)nextTurn(s);else if(S.in.every((x,t)=>!x||done(t)))return finish(best(),'show')}
+ push()}
+function nextHand(){if(!S||S.phase!='over')return;if(S.over)S.chips=S.chips.map(()=>1000);deal()}
+const view=i=>({me:i,chips:S.chips,bets:S.bets,in:S.in,turn:S.turn,phase:S.phase,my:S.hands[i],
+ hands:S.reveal?S.hands.map((h,s)=>S.in[s]?h:null):null,res:S.res,over:S.over,dc:S.dc,cur:cur()});
+function push(){if(test&&S.phase=='bet')me=S.turn;V=view(me);render();conns.forEach((c,s)=>c&&c.open&&c.send(view(s)))}
+/* ---- ui ---- */
+const card=c=>c.b?'<div class="card back"></div>':`<div class="card ${c.t}"><b>${c.m}</b><i>${E[c.m-1]}</i><span>${c.t=='g'?'광':c.t=='y'?'열끗':''}</span></div>`;
+function render(){$('lobby').hidden=true;$('game').hidden=false;
+ const m=V.me,B=V.bets,C=V.chips,pot=B.reduce((a,b)=>a+b,0),my=V.my||[];
+ st(test?`테스트 모드 · 지금 ${m+1}번 자리예요`:'');
+ $('opps').innerHTML=B.map((_,s)=>{if(s==m)return'';const i=V.in[s],h=V.hands&&V.hands[s];
+  return`<div class="opp${V.turn==s&&V.phase=='bet'?' t':''}${i?'':' x'}"><b>${s+1}번</b>${V.dc[s]?' (나감)':''}<br>칩 ${C[s]}<br>베팅 ${B[s]}`+
+  (i?`<div class="cards">${(h||[{b:1},{b:1}]).map(card).join('')}</div>${h?ev(h).n:'&nbsp;'}`:`<div class="cards"></div>${B[s]?'다이':'관전'}`)+'</div>'}).join('');
+ $('mcards').innerHTML=my.map(card).join('');$('hname').textContent=my.length?'내 패: '+ev(my).n:'관전 중이에요';
+ $('mc').textContent=C[m];$('mb').textContent=B[m];$('pot').textContent=pot;
+ let msg='',acts='';
+ if(V.phase=='bet'){const t=V.turn;msg=t==m?'내 차례예요':`${t+1}번이 고민 중…`;
+  if(t==m){const c=V.cur,toCall=c-B[m],mx=Math.min(...B.map((b,s)=>V.in[s]?b+C[s]:1e9)),mn=c+10,cl=x=>Math.min(Math.max(x,mn),mx);
+   acts=toCall?`<button class="r" data-a="call">콜 +${toCall}</button>`:'<button class="r" data-a="check">체크</button>';
+   if(mx>c){const seen=new Set;for(const[n,t0]of[['하프',r10(c+pot/2)],['풀',c+pot],['올인',mx]]){const x=cl(t0);if(x<=c||seen.has(x))continue;seen.add(x);
+    acts+=`<button data-a="raise" data-t="${x}">${x==mx?'올인':n} +${x-B[m]}</button>`}}
+   acts+='<button class="d" data-a="die">다이</button>'}}
+ else{const r=V.res,W=r.W;
+  if(r.why=='die')msg=W[0]==m?'모두 다이! 판돈은 내 거예요 🎉':`${W[0]+1}번이 판돈을 가져가요 (나머지는 다이)`;
+  else msg=(W.includes(m)?'🎉 ':'')+W.map(s=>(s==m?'나':s+1+'번')+' '+r.n[s]).join(' · ')+(W.length>1?' 무승부, 판돈을 나눠요':' 승리');
+  if(V.over)msg+=' · 게임이 끝났어요.';
+  acts=`<button class="r" data-a="next">${V.over?'새 게임':'다음 판'}</button>`}
+ $('msg').textContent=msg;$('acts').innerHTML=acts}
+$('acts').onclick=e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.a,t=+b.dataset.t||0;
+ if(guest)conn&&conn.send({a,t});else a=='next'?nextHand():act(me,a,t)};
+/* ---- network ---- */
+function lobbyUpd(){const n=1+gs.filter(g=>g.open).length;$('cnt').textContent=n+'명 입장 (최대 4명)';$('go').disabled=n<2;gs.forEach(g=>g.open&&g.send({wait:n}))}
+$('mk').onclick=function host(){const code=String(Math.random()*9000+1000|0);st('방 만드는 중…');me=0;S={started:false};peer=new Peer('seotda'+code);
+ peer.on('open',()=>{st('');$('entry').hidden=true;$('hl').hidden=false;$('cd').textContent=code;lobbyUpd()});
+ peer.on('connection',c=>{if(S.started||gs.length>=3){c.on('open',()=>c.close());return}
+  gs.push(c);c.on('open',lobbyUpd);
+  c.on('data',d=>{if(!S.started)return;const s=conns.indexOf(c);d.a=='next'?nextHand():act(s,d.a,d.t)});
+  c.on('close',()=>{if(S.started)drop(conns.indexOf(c));else{gs=gs.filter(x=>x!=c);lobbyUpd()}})});
+ peer.on('error',e=>{if(e.type=='unavailable-id'){peer.destroy();host()}else st('연결 오류: '+e.type)})};
+$('go').onclick=()=>{gs=gs.filter(g=>g.open);conns=[null,...gs];const n=1+gs.length;
+ S={started:true,n,chips:Array(n).fill(1000),dc:Array(n).fill(false),dealer:n-1};deal()};
+$('jn').onclick=()=>{const c=$('code').value.trim();if(c.length!=4)return st('코드 4자리를 입력해 주세요');guest=true;st('연결 중…');peer=new Peer();
+ peer.on('open',()=>{conn=peer.connect('seotda'+c,{reliable:true});
+  conn.on('data',d=>{if(d.wait)st('방장이 게임을 시작하길 기다리는 중 · 현재 '+d.wait+'명');else{V=d;render()}});
+  conn.on('close',()=>st('연결이 끊겼어요. 새로고침하고 다시 입장해 주세요.'))});
+ peer.on('error',e=>st(e.type=='peer-unavailable'?'그 코드의 방이 없어요. 코드를 다시 확인해 주세요.':'연결 오류: '+e.type))};
+$('ts').onclick=()=>{test=true;me=0;S={started:true,n:4,chips:Array(4).fill(1000),dc:Array(4).fill(false),dealer:3};deal()};
+</script></body></html>
